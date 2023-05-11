@@ -1,10 +1,24 @@
 import requests
 from bs4 import BeautifulSoup
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
+import json
+import re
+from typing import Dict
+import csv
+import os
 
+@dataclass
+class Company:
+    name: str
+    address: Dict[str,str]
+    phone: str
+    email: str
+    website: str
+    detail: str
 
 @dataclass
 class YPScraper:
+
     def get_proxy(self):
         print("Collecting proxies...")
         with requests.Session() as s:
@@ -66,8 +80,47 @@ class YPScraper:
 
     def parse(self, html):
         soup = BeautifulSoup(html, 'html.parser')
-        stage1 = soup.select('script')
-        print(len(stage1))
+        scripts = soup.select('script')
+        json_data = json.loads(re.search(r'({.+})', scripts[2].text).group())
+        json_formatted_str = json.dumps(json_data, indent=2)
+        print(json_formatted_str)
+        items = []
+        i = 0
+        while 1:
+            try:
+                name = json_data['model']['inAreaResultViews'][i]['name']
+                address = json_data['model']['inAreaResultViews'][i]['primaryAddress']
+                phone = json_data['model']['inAreaResultViews'][i]['callContactNumber']['value']
+                email = json_data['model']['inAreaResultViews'][i]['primaryEmail']
+                website = json_data['model']['inAreaResultViews'][i]['website']
+                detail = json_data['model']['inAreaResultViews'][i]['detailsLink']
+                items.append(asdict(Company(name=name, address=address, phone=phone, email=email, website=website, detail=detail)))
+                i += 1
+            except Exception as e:
+                print(e)
+                break
+        return items
+
+    def to_csv(self, datas, filename):
+        try:
+            for data in datas:
+                try:
+                    file_exists = os.path.isfile(filename)
+                    with open(filename, 'a', encoding='utf-16') as f:
+                        headers = ['name', 'address', 'phone', 'email', 'website', 'detail']
+                        writer = csv.DictWriter(f, delimiter=',', lineterminator='\n', fieldnames=headers)
+                        if not file_exists:
+                            writer.writeheader()
+                        if data != None:
+                            writer.writerow(data)
+                        else:
+                            pass
+                except Exception as e:
+                    print(e)
+                    continue
+        except:
+            pass
+
 
 if __name__ == '__main__':
     url = 'https://www.yellowpages.com.au/search/listings?clue=Property+Manager&locationClue=0830&lat=&lon='
@@ -80,4 +133,6 @@ if __name__ == '__main__':
     #     working_proxies.append(s.check_proxy(proxy))
     # print(working_proxies)
     html = s.fetch(url, proxy=proxy)
-    s.parse(html)
+    result = s.parse(html)
+    print(result)
+    s.to_csv(result,'result.csv')
