@@ -50,11 +50,34 @@ class YPScraper:
         except Exception as e:
             print(f"not working with {e}")
 
+    def fetch(self, url, proxy):
+        formated_proxy = {
+            "http": f"http://{proxy}",
+            "https": f"http://{proxy}"
+        }
+
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:108.0) Gecko/20100101 Firefox/108.0'
+        }
+
+        with requests.Session() as s:
+            r = s.get(url, proxies=formated_proxy, headers=headers)
+        return r.text
+
+    def parse(self, html):
+        soup = BeautifulSoup(html, 'html.parser')
+        stage1 = soup.select('script')
+        print(len(stage1))
+
 if __name__ == '__main__':
+    url = 'https://www.yellowpages.com.au/search/listings?clue=Property+Manager&locationClue=0830&lat=&lon='
+    proxy = '103.69.108.78:8191'
     s = YPScraper()
-    scraped_proxies = s.get_proxy()
-    print(scraped_proxies)
-    working_proxies = []
-    for proxy in scraped_proxies:
-        working_proxies.append(s.check_proxy(proxy))
-    print(working_proxies)
+    # scraped_proxies = s.get_proxy()
+    # print(scraped_proxies)
+    # working_proxies = []
+    # for proxy in scraped_proxies:
+    #     working_proxies.append(s.check_proxy(proxy))
+    # print(working_proxies)
+    html = s.fetch(url, proxy=proxy)
+    s.parse(html)
